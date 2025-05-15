@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Time Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@tailwindcss/browser@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 rounded-lg">
+    <h1 class="text-3xl font-semibold text-blue-600 text-center mb-8">Exam Time Calculator</h1>
+
+    <div id="exam-list" class="space-y-4">
+        <div class="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+            <input type="text" placeholder="Exam Name" class="exam-name flex-grow mr-4 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <input type="text" placeholder="HH:MM" class="duration w-32 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <button class="remove-exam bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline">Remove</button>
+        </div>
+    </div>
+
+    <button id="add-exam" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline mt-4">Add Exam</button>
+
+    <button id="calculate-times" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline mt-6 w-full">Calculate Times</button>
+
+    <div id="results" class="mt-8 p-6 bg-white rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-6">Calculation Results</h2>
+        <div id="results-container" class="space-y-4">
+            </div>
+    </div>
+
+    <script>
+        const examList = document.getElementById('exam-list');
+        const addExamButton = document.getElementById('add-exam');
+        const calculateTimesButton = document.getElementById('calculate-times');
+        const resultsContainer = document.getElementById('results-container');
+
+        function addExam() {
+            const examDiv = document.createElement('div');
+            examDiv.className = "bg-white p-6 rounded-lg shadow-md flex items-center justify-between";
+            examDiv.innerHTML = `
+                <input type="text" placeholder="Exam Name" class="exam-name flex-grow mr-4 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" placeholder="HH:MM" class="duration w-32 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <button class="remove-exam bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline">Remove</button>
+            `;
+            examList.appendChild(examDiv);
+
+            const removeButton = examDiv.querySelector('.remove-exam');
+            removeButton.addEventListener('click', () => {
+                examDiv.remove();
+            });
+        }
+
+        function parseDuration(durationString) {
+            const parts = durationString.split(':');
+            if (parts.length !== 2) {
+                return null;
+            }
+            const hours = parseInt(parts[0], 10);
+            const minutes = parseInt(parts[1], 10);
+            if (isNaN(hours) || isNaN(minutes) || hours < 0 || minutes < 0 || minutes > 59) {
+                return null;
+            }
+            return { hours, minutes };
+        }
+
+        function formatTime(date) {
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0'+minutes : minutes;
+            return hours + ':' + minutes + ' ' + ampm;
+        }
+
+        function calculateTimes() {
+            resultsContainer.innerHTML = ''; // Clear previous results
+            const examDivs = examList.querySelectorAll('.bg-white');
+
+            examDivs.forEach((examDiv, index) => {
+                const examNameInput = examDiv.querySelector('.exam-name');
+                const durationInput = examDiv.querySelector('.duration');
+                const examName = examNameInput.value.trim();
+                const durationString = durationInput.value.trim();
+
+                if (!examName) {
+                    resultsContainer.innerHTML += `<p class="text-red-500">Please enter an exam name for exam ${index + 1}.</p>`;
+                    return;
+                }
+
+                const duration = parseDuration(durationString);
+                if (!duration) {
+                    resultsContainer.innerHTML += `<p class="text-red-500">Invalid duration format (HH:MM) for exam ${examName}.</p>`;
+                    return;
+                }
+
+                const totalMinutes = duration.hours * 60 + duration.minutes;
+                const startTime = new Date(); // Current time as start time
+
+                const readingStartTime = new Date(startTime.getTime());
+                const readingEndTime = new Date(startTime.getTime() + 5 * 60 * 1000); // Add 5 minutes
+
+                const writingStartTime = new Date(readingEndTime.getTime());
+                const writingEndTime = new Date(writingStartTime.getTime() + totalMinutes * 60 * 1000);
+
+                const last30MinutesStart = new Date(writingEndTime.getTime() - 30 * 60 * 1000);
+                const last5MinutesStart = new Date(writingEndTime.getTime() - 5 * 60 * 1000);
+
+                let washroomBreaks = "Not Allowed";
+                if (totalMinutes > 75) { // 1 hour and 15 minutes = 75 minutes
+                    const washroomStart = new Date(writingStartTime.getTime() + 60 * 60 * 1000);
+                    const washroomEnd = new Date(writingEndTime.getTime() - 15 * 60 * 1000);
+                    washroomBreaks = `${formatTime(washroomStart)} - ${formatTime(washroomEnd)}`;
+                }
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = "bg-white p-6 rounded-lg shadow-md";
+                resultDiv.innerHTML = `
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">${examName}</h3>
+                    <p class="text-gray-700"><span class="font-semibold">Reading Time:</span> ${formatTime(readingStartTime)} - ${formatTime(readingEndTime)}</p>
+                    <p class="text-gray-700"><span class="font-semibold">Writing Time:</span> ${formatTime(writingStartTime)} - ${formatTime(writingEndTime)}</p>
+                    <p class="text-gray-700"><span class="font-semibold">Last 30 Minutes:</span> ${formatTime(last30MinutesStart)}</p>
+                    <p class="text-gray-700"><span class="font-semibold">Last 5 Minutes:</span> ${formatTime(last5MinutesStart)}</p>
+                    <p class="text-gray-700"><span class="font-semibold">Washroom Breaks:</span> ${washroomBreaks}</p>
+                `;
+                resultsContainer.appendChild(resultDiv);
+            });
+        }
+
+        addExamButton.addEventListener('click', addExam);
+        calculateTimesButton.addEventListener('click', calculateTimes);
+    </script>
+</body>
+</html>
